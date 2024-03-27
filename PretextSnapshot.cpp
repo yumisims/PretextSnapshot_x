@@ -288,6 +288,10 @@ Options:
 	--printSequenceNames:	Prints a list of the individual sequence names in the map, in order of appearance.
 			        Can only be used with the -m/--map option.
 
+	--memory mem:           Working set memory (Mb), default 16.
+
+	--textureBuffer mem:    Memory buffer (Mb) for texture, default 6.
+
 	--verbose vrbs:		Verbosity level, one of: "3"(default) for error, warning and status messages.
 							 "2" for error and warning messages.
 							 "1" for error messages.
@@ -2907,6 +2911,7 @@ MainArgs
     u32 outputBytes;
     memory_arena *textureBufferQueueArena;
     u32 textureBufferQueueTotalMemory = MegaByte(6);
+	u32 workingSetBytes = MegaByte(16);
 
     u08 inputFileName[1024];
     u32 inputMapSet = 0;
@@ -2969,6 +2974,8 @@ MainArgs
             { (char *)"thirdParty",     ko_no_argument,         317 },
             { (char *)"help",           ko_no_argument,         318 },
             { (char *)"sequenceHelp",   ko_no_argument,         319 },
+            { (char *)"textureBufferMemory", ko_required_argument, 320 },
+            { (char *)"memory", ko_required_argument, 321 },
             { NULL, 0, 0 }
         };
         ketopt_t opt = KETOPT_INIT;
@@ -3153,6 +3160,28 @@ MainArgs
                      }
                   }
                   break;
+
+               case 320:
+                  {
+                     u32 bufMb;
+                     if (!StringToInt_Check((u08 *)opt.arg, &bufMb) || !bufMb)
+                     {
+                        PrintError("Cannot parse textureBufferMemory option \'%s\' (positive integer required)", opt.arg);
+                     } else {
+                        textureBufferQueueTotalMemory = MegaByte(bufMb);
+                     }
+                  }
+
+               case 321:
+                  {
+                     u32 bufMb;
+                     if (!StringToInt_Check((u08 *)opt.arg, &bufMb) || !bufMb)
+                     {
+                        PrintError("Cannot parse memory option \'%s\' (positive integer required)", opt.arg);
+                     } else {
+                        workingSetBytes = MegaByte(bufMb);
+                     }
+                  }
             }
         }
     }
@@ -3258,7 +3287,7 @@ MainArgs
        outputBytes = (u32)(((f32)(texMinResolution * texMinResolution) * 27.0f) + 0.5f);
 
        //CreateMemoryArena(Working_Set, (textureBufferQueueTotalMemory + outputBytes));
-       CreateMemoryArena(Working_Set, MegaByte(16) + textureBufferQueueTotalMemory);
+       CreateMemoryArena(Working_Set, workingSetBytes + textureBufferQueueTotalMemory);
        Thread_Pool = ThreadPoolInit(&Working_Set, 4);
        Writing_Thread_Pool = ThreadPoolInit(&Working_Set, 1);
        Texture_Buffer_Queue = PushStruct(Working_Set, texture_buffer_queue);    
@@ -3286,7 +3315,7 @@ MainArgs
     }
     else
     {
-       CreateMemoryArena(Working_Set, MegaByte(4));
+       CreateMemoryArena(Working_Set, workingSetBytes);
        textureBufferQueueArena = 0;
     }
 
